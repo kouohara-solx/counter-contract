@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Counter DApp</title>
+  </head>
+  <body>
+    <h1>Counter: <span id="count"></span></h1>
+    <button id="increment">Increment</button>
+    <button id="decrement">Decrement</button>
+
+    <script type="module">
+      import * as ethers from "https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.0/ethers.js";
+
+      // デプロイしたCounterコントラクトのアドレスとABI
+      const contractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; // ここにコントラクトアドレスを貼り付け
+      const contractABI = [
+        {
+          inputs: [],
+          name: "count",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "decrement",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "getCount",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [],
+          name: "increment",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ];
+
+      let provider;
+      let signer;
+      let contract;
+
+      // MetaMaskとの接続
+      async function connectToMetaMask() {
+        if (typeof window.ethereum !== "undefined") {
+          try {
+            await window.ethereum.request({ method: "eth_requestAccounts" });
+
+            // provider の作成方法を修正
+            provider = new ethers.BrowserProvider(window.ethereum);
+            signer = await provider.getSigner(); // getSigner() は非同期になった
+            contract = new ethers.Contract(
+              contractAddress,
+              contractABI,
+              signer
+            );
+
+            console.log("MetaMask connected!");
+            updateCounterValue();
+            //listenForCounterChanges();
+          } catch (error) {
+            console.error("MetaMask connection failed:", error);
+            alert(
+              "MetaMask connection failed. Please make sure you are connected and approve the connection request."
+            );
+          }
+        } else {
+          console.error("MetaMask not detected!");
+          alert("MetaMask is not detected! Please install MetaMask extension.");
+        }
+      }
+
+      // カウンターの値の表示を更新
+      async function updateCounterValue() {
+        if (contract) {
+          const count = await contract.getCount();
+          document.getElementById("count").textContent = count.toString();
+        }
+      }
+
+      // incrementボタンのクリックイベント
+      document
+        .getElementById("increment")
+        .addEventListener("click", async () => {
+          if (contract) {
+            try {
+              const tx = await contract.increment();
+              await tx.wait(); // トランザクションが完了するのを待つ
+              console.log("Counter incremented!");
+              updateCounterValue();
+            } catch (error) {
+              console.error("Increment failed:", error);
+              alert("Increment failed. Check console for details.");
+            }
+          }
+        });
+
+      // decrementボタンのクリックイベント
+      document
+        .getElementById("decrement")
+        .addEventListener("click", async () => {
+          if (contract) {
+            try {
+              const tx = await contract.decrement();
+              await tx.wait(); // トランザクションが完了するのを待つ
+              console.log("Counter decremented!");
+              updateCounterValue();
+            } catch (error) {
+              console.error("Decrement failed:", error);
+              alert("Decrement failed. Check console for details.");
+            }
+          }
+        });
+
+      // イベントをリッスン (Counterコントラクトにイベントがないので省略)
+      // function listenForCounterChanges() {
+      //     ...
+      // }
+
+      // アカウントとネットワークの変更を監視
+      window.ethereum.on("accountsChanged", (accounts) => {
+        console.log("Accounts changed:", accounts);
+        connectToMetaMask(); // 再接続
+      });
+
+      window.ethereum.on("chainChanged", (chainId) => {
+        console.log("Chain changed:", chainId);
+        window.location.reload(); // ページをリロード
+      });
+
+      // ページ読み込み時にMetaMaskに接続 (DOMContentLoaded イベントを使用)
+      document.addEventListener("DOMContentLoaded", function () {
+        connectToMetaMask();
+      });
+    </script>
+  </body>
+</html>

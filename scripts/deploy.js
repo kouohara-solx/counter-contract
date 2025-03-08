@@ -1,11 +1,10 @@
-// scripts/deploy_nft.js
 async function main() {
-  const MyContractOwnable = await ethers.getContractFactory("MyContractOwnable");
-  const myContractOwnable = await MyContractOwnable.deploy();
+  const TodoList = await ethers.getContractFactory("TodoList");
+  const todoList = await TodoList.deploy();
 
-  await myContractOwnable.waitForDeployment();
+  await todoList.waitForDeployment();
 
-  console.log("MyContractOwnable deployed to:", await myContractOwnable.getAddress());
+  console.log("TodoList deployed to:", await todoList.getAddress());
 }
 
 main()

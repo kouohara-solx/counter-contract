@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>DApp</title>
+    <script type="module">
+      import { ethers } from "https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.min.js";
+
+      let provider;
+      let signer;
+      let contract;
+
+      async function connectToMetaMask() {
+        if (typeof window.ethereum !== "undefined") {
+          try {
+            await window.ethereum.request({ method: "eth_requestAccounts" });
+            provider = new ethers.BrowserProvider(window.ethereum);
+            signer = provider.getSigner();
+            // contract = new ethers.Contract(contractAddress, contractABI, signer); // ここでコントラクトを初期化してもOK
+
+            console.log("MetaMask connected!");
+            // 接続後の処理 (アカウント情報の表示、コントラクトとの連携など)
+          } catch (error) {
+            console.error("MetaMask connection failed:", error);
+            // ユーザーにエラーメッセージを表示 (例: MetaMaskで接続を拒否されました)
+            alert(
+              "MetaMask connection failed. Please make sure you are connected and approve the connection request."
+            );
+          }
+        } else {
+          console.error("MetaMask not detected!");
+          // ユーザーにMetaMaskがインストールされていないことを通知
+          alert("MetaMask is not detected! Please install MetaMask extension.");
+        }
+      }
+
+      // DOMContentLoaded イベントリスナー内で実行
+      document.addEventListener("DOMContentLoaded", function () {
+        connectToMetaMask();
+      });
+    </script>
+  </head>
+  <body></body>
+</html>

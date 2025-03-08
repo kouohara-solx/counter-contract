@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>TODO List DApp</title>
+    <style>
+      /* 簡単なCSS */
+      .completed {
+        text-decoration: line-through;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>TODO List</h1>
+
+    <input type="text" id="taskContent" placeholder="Enter task content" />
+    <button id="addTask">Add Task</button>
+
+    <h2>Tasks</h2>
+    <ul id="taskList"></ul>
+
+    <script type="module">
+      import * as ethers from "https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.0/ethers.js";
+
+      const contractAddress = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"; // デプロイしたTodoListコントラクトのアドレス
+      const contractABI = [
+        {
+          inputs: [
+            {
+              internalType: "string",
+              name: "_content",
+              type: "string",
+            },
+          ],
+          name: "createTask",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "_id",
+              type: "uint256",
+            },
+          ],
+          name: "toggleCompleted",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "string",
+              name: "content",
+              type: "string",
+            },
+            {
+              indexed: false,
+              internalType: "bool",
+              name: "completed",
+              type: "bool",
+            },
+          ],
+          name: "TaskCreated",
+          type: "event",
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: false,
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              indexed: false,
+              internalType: "bool",
+              name: "completed",
+              type: "bool",
+            },
+          ],
+          name: "TaskCompleted",
+          type: "event",
+        },
+        {
+          inputs: [],
+          stateMutability: "nonpayable",
+          type: "constructor",
+        },
+        {
+          inputs: [],
+          name: "taskCount",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint256",
+              name: "",
+              type: "uint256",
+            },
+          ],
+          name: "tasks",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "id",
+              type: "uint256",
+            },
+            {
+              internalType: "string",
+              name: "content",
+              type: "string",
+            },
+            {
+              internalType: "bool",
+              name: "completed",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+      ];
+
+      let provider;
+      let signer;
+      let contract;
+
+      // MetaMaskとの接続
+      async function connectToMetaMask() {
+        if (typeof window.ethereum !== "undefined") {
+          try {
+            await window.ethereum.request({ method: "eth_requestAccounts" });
+            provider = new ethers.BrowserProvider(window.ethereum);
+            signer = await provider.getSigner();
+            contract = new ethers.Contract(
+              contractAddress,
+              contractABI,
+              signer
+            );
+
+            console.log("MetaMask connected!");
+            loadTasks(); // タスクを読み込む
+            listenForTaskEvents();
+          } catch (error) {
+            console.error("MetaMask connection error.", error);
+            alert(
+              "MetaMask connection failed. Please make sure you are connected and approve the connection request."
+            );
+          }
+        } else {
+          console.error("MetaMask not detected!");
+          alert("MetaMask is not detected! Please install MetaMask extension.");
+        }
+      }
+
+      // タスクを読み込む
+      async function loadTasks() {
+        if (!contract) return; // コントラクトが初期化されるまで待つ
+
+        const taskCount = await contract.taskCount();
+        const taskList = document.getElementById("taskList");
+        taskList.innerHTML = ""; // 一旦クリア
+
+        for (let i = 1; i <= taskCount; i++) {
+          const task = await contract.tasks(i);
+          const li = document.createElement("li");
+          li.textContent = task.content;
+          li.dataset.taskId = task.id;
+
+          if (task.completed) {
+            li.classList.add("completed");
+          }
+
+          // チェックボックス
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = task.completed;
+          checkbox.addEventListener("change", toggleTaskCompleted);
+
+          li.appendChild(checkbox);
+          taskList.appendChild(li);
+        }
+      }
+
+      // タスクの完了状態を切り替える
+      async function toggleTaskCompleted(event) {
+        if (!contract) return;
+
+        const li = event.target.parentNode;
+        const taskId = li.dataset.taskId;
+
+        try {
+          const tx = await contract.toggleCompleted(taskId);
+          await tx.wait();
+          console.log("Task toggled!");
+          // loadTasks(); // イベントで更新するので、ここでは不要
+        } catch (error) {
+          console.error("Toggle task failed:", error);
+          alert("Toggle task failed. Check console for details.");
+        }
+      }
+
+      // 新しいタスクを追加する
+      document.getElementById("addTask").addEventListener("click", async () => {
+        if (!contract) return;
+
+        const taskContent = document.getElementById("taskContent").value;
+        try {
+          const tx = await contract.createTask(taskContent);
+          await tx.wait();
+          console.log("Task created!");
+          document.getElementById("taskContent").value = ""; // 入力欄をクリア
+          //loadTasks(); // イベントで更新するので、ここでは不要
+        } catch (error) {
+          console.error("Create Task Error", error);
+          alert("Create Task Error. Check console for details.");
+        }
+      });
+
+      // イベントをリッスン
+      function listenForTaskEvents() {
+        if (!contract) return;
+
+        contract.on("TaskCreated", (id, content, completed) => {
+          console.log("TaskCreated event:", id, content, completed);
+
+          // すでに同じ ID のタスクが追加されていないかチェック
+          const taskList = document.getElementById("taskList");
+          for (let i = 0; i < taskList.children.length; i++) {
+            if (taskList.children[i].dataset.taskId == id) {
+              return; // すでに存在する場合は何もしない
+            }
+          }
+
+          // 新しいタスク要素を作成 (以前と同じ)
+          const li = document.createElement("li");
+          li.textContent = content;
+          li.dataset.taskId = id;
+
+          if (completed) {
+            li.classList.add("completed");
+          }
+
+          // チェックボックス (以前と同じ)
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = completed;
+          checkbox.addEventListener("change", toggleTaskCompleted);
+
+          li.appendChild(checkbox);
+
+          // リストに追加
+          document.getElementById("taskList").appendChild(li);
+        });
+
+        // TaskCompleted イベントハンドラ (以前と同じ)
+        contract.on("TaskCompleted", (id, completed) => {
+          console.log("TaskCompleted event:", id, completed);
+          const taskList = document.getElementById("taskList");
+          for (let i = 0; i < taskList.children.length; i++) {
+            const li = taskList.children[i];
+            if (li.dataset.taskId == id) {
+              const checkbox = li.querySelector('input[type="checkbox"]');
+              if (checkbox) {
+                checkbox.checked = completed;
+                if (completed) {
+                  li.classList.add("completed");
+                } else {
+                  li.classList.remove("completed");
+                }
+              }
+              break;
+            }
+          }
+        });
+      }
+
+      // アカウントとネットワークの変更を監視
+      window.ethereum.on("accountsChanged", (accounts) => {
+        console.log("Accounts changed:", accounts);
+        connectToMetaMask(); // 再接続
+      });
+
+      window.ethereum.on("chainChanged", (chainId) => {
+        console.log("Chain changed:", chainId);
+        window.location.reload(); // ページをリロード
+      });
+
+      // ページ読み込み時にMetaMaskに接続 (DOMContentLoaded イベントを使用)
+      document.addEventListener("DOMContentLoaded", function () {
+        connectToMetaMask();
+      });
+    </script>
+  </body>
+</html>
