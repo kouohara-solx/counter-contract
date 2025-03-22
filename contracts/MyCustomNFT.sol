@@ -7,7 +7,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract MyCustomNFT is ERC721URIStorage, Ownable {
     uint256 private _tokenIdCounter;
 
-    constructor() ERC721("MyCustomNFT", "MCNFT") Ownable(msg.sender) {}
+    constructor() ERC721("MyCustomNFT", "MCNFT") Ownable(msg.sender) {
+
+    }
 
     function mintNFT(address recipient, string memory tokenURI)
         public
@@ -18,7 +20,6 @@ contract MyCustomNFT is ERC721URIStorage, Ownable {
         _tokenIdCounter += 1;
         _mint(recipient, newItemId);
         _setTokenURI(newItemId, tokenURI); // メタデータURIを設定
-
         return newItemId;
     }
 }
